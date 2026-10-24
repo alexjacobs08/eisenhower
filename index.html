@@ -1,0 +1,1425 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eisenhower Matrix</title>
+<meta name="description" content="Plot your tasks on an Eisenhower matrix. Click to add a task, drag it to show how urgent and important it is. Saved in your browser, shareable by link.">
+<meta name="theme-color" content="#EBEEE8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121614" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='13' height='13' rx='3' fill='%23D33B22'/%3E%3Crect x='17' y='2' width='13' height='13' rx='3' fill='%232B52B5'/%3E%3Crect x='2' y='17' width='13' height='13' rx='3' fill='%23B87A00'/%3E%3Crect x='17' y='17' width='13' height='13' rx='3' fill='%236F7A73'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil:wght@700;800&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #EBEEE8;
+  --panel: #F6F7F3;
+  --ink: #1B221E;
+  --ink-2: #48524C;
+  --ink-3: #7B847E;
+  --rule: rgba(27, 34, 30, .13);
+  --do: #D33B22;
+  --schedule: #2B52B5;
+  --delegate: #B87A00;
+  --elim: #6F7A73;
+  --wash: 9%;
+  --grid: 26%;
+  --name: 24%;
+  --label-bg: rgba(246, 247, 243, .9);
+  --lift: 0 1px 2px rgba(20, 28, 24, .2), 0 3px 8px rgba(20, 28, 24, .12);
+  --lift-hi: 0 2px 4px rgba(20, 28, 24, .2), 0 10px 24px rgba(20, 28, 24, .2);
+  --stencil: "Big Shoulders Stencil", "Big Shoulders Stencil Display", Impact, sans-serif;
+  --sans: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #121614;
+    --panel: #181D1A;
+    --ink: #E3E8E2;
+    --ink-2: #AAB3AC;
+    --ink-3: #78817A;
+    --rule: rgba(227, 232, 226, .12);
+    --do: #FF6B4E;
+    --schedule: #7E9CFF;
+    --delegate: #E4AA2C;
+    --elim: #98A39C;
+    --wash: 11%;
+    --grid: 30%;
+    --name: 26%;
+    --label-bg: rgba(24, 29, 26, .88);
+    --lift: 0 1px 2px rgba(0, 0, 0, .5), 0 3px 8px rgba(0, 0, 0, .35);
+    --lift-hi: 0 2px 4px rgba(0, 0, 0, .5), 0 10px 24px rgba(0, 0, 0, .45);
+    color-scheme: dark;
+  }
+}
+
+[data-q="do"] { --c: var(--do); }
+[data-q="schedule"] { --c: var(--schedule); }
+[data-q="delegate"] { --c: var(--delegate); }
+[data-q="elim"] { --c: var(--elim); }
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 15px/1.5 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+/* ---------- layout ---------- */
+.app {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  min-height: 100vh;
+  min-height: 100svh;
+}
+.stage {
+  --bh: clamp(380px, calc(100svh - 196px), 900px);
+  padding: 20px 32px 24px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+/* ---------- header ---------- */
+.top {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--stencil);
+  font-weight: 800;
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: .01em;
+  white-space: nowrap;
+}
+.brand svg { width: 22px; height: 22px; flex: none; }
+.title {
+  flex: 1 1 220px;
+  min-width: 0;
+  border: 0;
+  border-left: 1px solid var(--rule);
+  background: none;
+  padding: 4px 0 4px 20px;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  border-radius: 0;
+}
+.title::placeholder { color: var(--ink-3); }
+.title:focus { outline: none; }
+.title:focus-visible { box-shadow: inset 0 -2px 0 var(--ink); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  border: 1px solid var(--rule);
+  background: transparent;
+  border-radius: 8px;
+  padding: 7px 13px;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.btn:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.btn svg { width: 15px; height: 15px; flex: none; }
+.btn.solid { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn.solid:hover { background: color-mix(in srgb, var(--ink) 86%, var(--paper)); }
+
+/* ---------- shared banner ---------- */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--schedule) 12%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--schedule) 30%, transparent);
+  font-size: 14px;
+}
+.banner p { margin: 0; flex: 1 1 260px; }
+
+/* ---------- matrix frame ---------- */
+.frame {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  row-gap: 8px;
+  width: 100%;
+  max-width: calc(var(--bh) * 1.55 + 32px);
+  margin: 0 auto;
+}
+.xaxis, .yaxis {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  letter-spacing: .01em;
+}
+.xaxis { grid-column: 2; grid-template-columns: 1fr 1fr; }
+.yaxis { grid-row: 2; grid-template-rows: 1fr 1fr; }
+.xaxis span, .yaxis span { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.yaxis span { writing-mode: vertical-rl; transform: rotate(180deg); }
+.xaxis span::before, .xaxis span::after,
+.yaxis span::before, .yaxis span::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+.yaxis span::before, .yaxis span::after { height: auto; width: 1px; }
+
+/* ---------- board ---------- */
+.board {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  height: var(--bh);
+  container-type: inline-size;
+  cursor: crosshair;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.board.armed { cursor: copy; }
+.quads {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template: 1fr 1fr / 1fr 1fr;
+  gap: 6px;
+}
+.quad {
+  position: relative;
+  overflow: hidden;
+  border-radius: 5px;
+  background-color: color-mix(in srgb, var(--c) var(--wash), var(--panel));
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--c) var(--grid), transparent) 1px, transparent 1.6px);
+  background-size: 24px 24px;
+  background-position: 12px 12px;
+  transition: background-color .2s ease;
+}
+.quad[data-q="do"] { border-top-left-radius: 22px; }
+.quad[data-q="schedule"] { border-top-right-radius: 22px; }
+.quad[data-q="delegate"] { border-bottom-left-radius: 22px; }
+.quad[data-q="elim"] { border-bottom-right-radius: 22px; }
+.board[data-over="do"] .quad[data-q="do"],
+.board[data-over="schedule"] .quad[data-q="schedule"],
+.board[data-over="delegate"] .quad[data-q="delegate"],
+.board[data-over="elim"] .quad[data-q="elim"] {
+  background-color: color-mix(in srgb, var(--c) calc(var(--wash) + 9%), var(--panel));
+}
+.qtag {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+  padding: clamp(12px, 2.4cqw, 22px) clamp(14px, 2.8cqw, 26px);
+}
+.quad[data-q="do"] .qtag { top: 0; left: 0; }
+.quad[data-q="schedule"] .qtag { top: 0; right: 0; align-items: flex-end; text-align: right; }
+.quad[data-q="delegate"] .qtag { bottom: 0; left: 0; flex-direction: column-reverse; }
+.quad[data-q="elim"] .qtag { bottom: 0; right: 0; align-items: flex-end; text-align: right; flex-direction: column-reverse; }
+.qname {
+  font-family: var(--stencil);
+  font-weight: 800;
+  font-size: clamp(34px, 10cqw, 124px);
+  line-height: .78;
+  letter-spacing: .005em;
+  color: color-mix(in srgb, var(--c) var(--name), transparent);
+}
+.qhint {
+  font-size: clamp(11.5px, 1.25cqw, 13px);
+  font-weight: 500;
+  line-height: 1.3;
+  color: color-mix(in srgb, var(--c) 62%, var(--ink));
+  max-width: 30ch;
+}
+
+.layer { position: absolute; inset: 0; }
+
+/* empty hint sits on the crosshair */
+.empty {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 9px 16px;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: var(--lift-hi);
+}
+
+/* ---------- pins ---------- */
+.pin {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 1;
+}
+.pin:hover, .pin.active, .pin.hl, .pin:focus-within { z-index: 3; }
+.pin.dragging { z-index: 4; }
+.dot {
+  position: absolute;
+  left: -10px;
+  top: -10px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 3px solid var(--panel);
+  background: var(--c);
+  box-shadow: var(--lift);
+  cursor: grab;
+  touch-action: none;
+  transition: transform .16s cubic-bezier(.3, 1.6, .5, 1), background-color .2s ease, box-shadow .16s ease;
+}
+.dot::before { content: ""; position: absolute; inset: -11px; border-radius: 50%; }
+.dot:focus-visible { outline: 2px solid var(--c); outline-offset: 3px; }
+.pin:hover .dot, .pin.hl .dot { transform: scale(1.18); }
+.pin.active .dot { box-shadow: 0 0 0 5px color-mix(in srgb, var(--c) 28%, transparent), var(--lift); }
+.pin.dragging .dot { transform: scale(1.3); box-shadow: var(--lift-hi); cursor: grabbing; }
+.pin.done .dot { background: var(--panel); box-shadow: inset 0 0 0 3px var(--c), var(--lift); }
+.label {
+  position: absolute;
+  left: 15px;
+  top: 0;
+  transform: translateY(-50%);
+  width: max-content;
+  max-width: 190px;
+  padding: 3px 8px 3px 7px;
+  border-radius: 6px;
+  background: var(--label-bg);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--ink);
+  cursor: grab;
+  touch-action: none;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.label:empty { display: none; }
+.pin.flip .label { left: auto; right: 15px; text-align: right; padding: 3px 7px 3px 8px; }
+.pin.done .label { color: var(--ink-3); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--ink) 40%, transparent); }
+.pin.dragging .label { cursor: grabbing; box-shadow: var(--lift); }
+
+@keyframes land {
+  0% { transform: scale(.2); }
+  55% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+.pin.landed .dot { animation: land .42s cubic-bezier(.3, 1.4, .5, 1) both; }
+.board.intro .pin .dot { animation: land .5s cubic-bezier(.3, 1.4, .5, 1) both; animation-delay: calc(var(--i, 0) * 45ms + 120ms); }
+.board.intro .pin .label { animation: fade .4s ease both; animation-delay: calc(var(--i, 0) * 45ms + 260ms); }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* drag guides */
+.guide {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s;
+  z-index: 0;
+}
+.guide.gx { top: 0; bottom: 0; width: 0; border-left: 1.5px dashed color-mix(in srgb, var(--c, var(--ink)) 55%, transparent); }
+.guide.gy { left: 0; right: 0; height: 0; border-top: 1.5px dashed color-mix(in srgb, var(--c, var(--ink)) 55%, transparent); }
+.guide.on { opacity: 1; }
+
+/* ---------- editor popover ---------- */
+.editor {
+  position: absolute;
+  z-index: 10;
+  width: 264px;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 0 0 1px var(--rule), var(--lift-hi);
+  cursor: default;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.editor input {
+  width: 100%;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--paper);
+  font-size: 15px;
+  font-weight: 500;
+}
+.editor input:focus { outline: none; border-color: var(--c, var(--ink)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c, var(--ink)) 22%, transparent); }
+.ed-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.ed-quad {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--c) 70%, var(--ink));
+  margin-right: auto;
+  padding-left: 2px;
+}
+.ed-quad::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--c); }
+.ed-row .btn { padding: 5px 10px; font-size: 12.5px; }
+.ed-key { font-size: 12px; color: var(--ink-3); }
+.btn.danger:hover { background: color-mix(in srgb, var(--do) 12%, transparent); color: color-mix(in srgb, var(--do) 80%, var(--ink)); }
+
+.foot {
+  max-width: calc(var(--bh) * 1.55 + 32px);
+  width: 100%;
+  margin: 14px auto 0;
+  padding-left: 32px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px 24px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.foot p { margin: 0; max-width: 72ch; }
+
+/* ---------- side panel ---------- */
+.panel {
+  background: var(--panel);
+  border-left: 1px solid var(--rule);
+  padding: 22px 24px 32px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100svh;
+  overflow-y: auto;
+}
+.panel h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -.005em;
+}
+.panel .sub { margin: 2px 0 12px; font-size: 13px; color: var(--ink-3); line-height: 1.4; }
+.dump input {
+  width: 100%;
+  border: 1px solid var(--rule);
+  border-radius: 9px;
+  padding: 9px 12px;
+  background: var(--paper);
+  font-size: 14.5px;
+}
+.dump input::placeholder { color: var(--ink-3); }
+.dump input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 12%, transparent); }
+.tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 5px 5px 5px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+  background: var(--paper);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.chip:hover { border-color: var(--ink-2); }
+.chip::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--ink-2);
+}
+.chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip.armed { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.chip.armed::before { border-color: var(--paper); }
+.chip.lifted { opacity: .35; }
+.chip-x {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  opacity: .55;
+  padding: 0;
+}
+.chip-x:hover { opacity: 1; background: color-mix(in srgb, currentColor 14%, transparent); }
+.chip-x svg { width: 10px; height: 10px; }
+
+.ghost {
+  position: fixed;
+  z-index: 50;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+.ghost .dot { cursor: grabbing; transform: scale(1.3); box-shadow: var(--lift-hi); }
+.ghost:not([data-q]) .dot { background: var(--ink-3); }
+.ghost .label { box-shadow: var(--lift); }
+
+.list { margin-top: 28px; }
+.group { margin-top: 18px; }
+.group-h {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--rule);
+}
+.group-h::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex: none; }
+.group-h h3 { margin: 0; font-size: 14px; font-weight: 700; }
+.group-h .count { margin-left: auto; font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.group.is-empty .group-h h3 { color: var(--ink-3); font-weight: 600; }
+.group.is-empty .group-h::before { opacity: .45; }
+.group ol { list-style: none; margin: 4px 0 0; padding: 0; }
+.group li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 5px 6px 5px 4px;
+  margin: 0 -6px 0 -4px;
+  border-radius: 7px;
+}
+.group li:hover, .group li.hl { background: color-mix(in srgb, var(--c) 9%, transparent); }
+.check {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 2px solid var(--c);
+  background: transparent;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: var(--panel);
+}
+.check svg { width: 10px; height: 10px; opacity: 0; }
+.check[aria-checked="true"] { background: var(--c); }
+.check[aria-checked="true"] svg { opacity: 1; }
+.ltext {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  padding: 0;
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.ltext:hover { text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; }
+li.done .ltext { color: var(--ink-3); text-decoration: line-through; }
+
+/* ---------- toast ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  z-index: 60;
+  transform: translate(-50%, 12px);
+  opacity: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 10px 12px 10px 16px;
+  border-radius: 11px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 14px;
+  box-shadow: var(--lift-hi);
+  transition: opacity .18s ease, transform .18s ease;
+}
+.toast.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.toast button {
+  border: 0;
+  border-radius: 7px;
+  padding: 5px 10px;
+  background: color-mix(in srgb, var(--paper) 16%, transparent);
+  color: var(--paper);
+  font-weight: 600;
+  font-size: 13.5px;
+}
+.toast button:hover { background: color-mix(in srgb, var(--paper) 26%, transparent); }
+.toast button:empty { display: none; }
+
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 900px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .stage { padding: 16px 16px 20px; }
+  .board { height: auto; aspect-ratio: 1 / 1; }
+  .frame { max-width: none; grid-template-columns: 18px minmax(0, 1fr); column-gap: 6px; }
+  .foot { max-width: none; padding-left: 24px; }
+  .panel { position: static; height: auto; border-left: 0; border-top: 1px solid var(--rule); padding: 22px 16px 40px; }
+  .label { max-width: 132px; font-size: 12.5px; }
+  .top { gap: 12px 16px; }
+  .title { flex-basis: 100%; order: 3; border-left: 0; padding-left: 0; }
+  .actions { margin-left: auto; }
+}
+.btn .short { display: none; }
+@media (max-width: 520px) {
+  .btn .long { display: none; }
+  .btn .short { display: inline; }
+  .qhint { display: none; }
+  .label { display: block; white-space: nowrap; text-overflow: ellipsis; max-width: 116px; padding: 2px 6px; }
+  .pin.flip .label { padding: 2px 6px; }
+  .brand { font-size: 23px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+@media print {
+  .panel, .actions, .foot, .toast, .banner { display: none !important; }
+  .app { display: block; }
+  .board { height: 7in; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <main class="stage">
+    <header class="top">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="2" width="13" height="13" rx="3" fill="var(--do)"/><rect x="17" y="2" width="13" height="13" rx="3" fill="var(--schedule)"/><rect x="2" y="17" width="13" height="13" rx="3" fill="var(--delegate)"/><rect x="17" y="17" width="13" height="13" rx="3" fill="var(--elim)"/></svg>
+        Eisenhower Matrix
+      </div>
+      <label class="sr" for="title">Board name</label>
+      <input id="title" class="title" type="text" maxlength="80" placeholder="Name this board" autocomplete="off" spellcheck="false">
+      <div class="actions">
+        <button class="btn" id="share" type="button" title="Copy a link to this board">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6.5 9.5l3-3M7 4.5l1-1a2.5 2.5 0 013.5 3.5l-1 1M9 11.5l-1 1A2.5 2.5 0 014.5 9l1-1"/></svg>
+          <span class="long">Copy link</span><span class="short">Link</span>
+        </button>
+        <button class="btn" id="copytext" type="button" title="Copy the board as a checklist">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 4h10M3 8h10M3 12h6"/></svg>
+          <span class="long">Copy as list</span><span class="short">List</span>
+        </button>
+        <button class="btn" id="clear" type="button" title="Remove every task">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/></svg>
+          <span>Clear</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="banner" id="banner" hidden>
+      <p>You're viewing a shared board. Changes here aren't saved until you keep it.</p>
+      <button class="btn solid" id="keep" type="button">Keep this board</button>
+      <button class="btn" id="mine" type="button">Back to my board</button>
+    </div>
+
+    <div class="frame">
+      <div class="xaxis" aria-hidden="true"><span>Urgent</span><span>Not urgent</span></div>
+      <div class="yaxis" aria-hidden="true"><span>Important</span><span>Not important</span></div>
+      <div class="board" id="board" role="group" aria-label="Eisenhower matrix. Left is more urgent, top is more important. Click to add a task.">
+        <div class="quads" aria-hidden="true">
+          <div class="quad" data-q="do"><div class="qtag"><div class="qname">Do</div><div class="qhint">Urgent and important. Do it now.</div></div></div>
+          <div class="quad" data-q="schedule"><div class="qtag"><div class="qname">Schedule</div><div class="qhint">Important, not urgent. Give it a time.</div></div></div>
+          <div class="quad" data-q="delegate"><div class="qtag"><div class="qname">Delegate</div><div class="qhint">Urgent, not important. Hand it off.</div></div></div>
+          <div class="quad" data-q="elim"><div class="qtag"><div class="qname">Eliminate</div><div class="qhint">Neither. Let it go.</div></div></div>
+        </div>
+        <div class="layer" id="layer">
+          <div class="guide gx" id="gx"></div>
+          <div class="guide gy" id="gy"></div>
+        </div>
+        <div class="empty" id="empty" hidden>Click anywhere to add a task</div>
+        <div class="editor" id="editor" hidden>
+          <label class="sr" for="ed-input">Task</label>
+          <input id="ed-input" type="text" maxlength="120" placeholder="What needs doing?" autocomplete="off">
+          <div class="ed-row">
+            <span class="ed-quad" id="ed-quad">Do</span>
+            <span class="ed-key" id="ed-key">Enter to save</span>
+            <button class="btn" id="ed-done" type="button">Mark done</button>
+            <button class="btn danger" id="ed-del" type="button">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="foot">
+      <p>Click to add a task, drag to move it. The further left, the more urgent. The higher up, the more important.</p>
+      <p>Saved in this browser.</p>
+    </footer>
+  </main>
+
+  <aside class="panel" aria-label="Tasks">
+    <section class="dump">
+      <h2>Brain dump</h2>
+      <p class="sub">Get it all out first, then drag each one onto the matrix.</p>
+      <form id="dump-form" autocomplete="off">
+        <label class="sr" for="dump-input">Add a task to sort later</label>
+        <input id="dump-input" type="text" maxlength="120" placeholder="Add a task and press Enter">
+      </form>
+      <ul class="tray" id="tray" aria-label="Unsorted tasks"></ul>
+    </section>
+    <section class="list" id="list" aria-label="Tasks by quadrant">
+      <h2>By priority</h2>
+      <p class="sub">Sorted by where they sit. Tick things off as you go.</p>
+      <div id="groups"></div>
+    </section>
+  </aside>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toast-msg"></span><button id="toast-btn" type="button"></button></div>
+
+<script>
+(() => {
+  const KEY = 'eisenhower.v1';
+  const QUADS = {
+    do: { name: 'Do' },
+    schedule: { name: 'Schedule' },
+    delegate: { name: 'Delegate' },
+    elim: { name: 'Eliminate' },
+  };
+  const ORDER = ['do', 'schedule', 'delegate', 'elim'];
+  const CHECK_SVG = '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.2l2 2L8 3"/></svg>';
+  const X_SVG = '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l6 6M8 2l-6 6"/></svg>';
+
+  const $ = (s) => document.querySelector(s);
+  const board = $('#board'), layer = $('#layer'), editor = $('#editor'), edInput = $('#ed-input');
+  const gx = $('#gx'), gy = $('#gy'), trayEl = $('#tray'), groupsEl = $('#groups'), titleEl = $('#title');
+
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+  const quadOf = (x, y) => (y < 0.5 ? (x < 0.5 ? 'do' : 'schedule') : (x < 0.5 ? 'delegate' : 'elim'));
+  const score = (it) => (1 - it.x) + (1 - it.y);
+  const trunc = (s, n = 40) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
+
+  /* ---------- state ---------- */
+  const blank = () => ({ title: '', items: [], tray: [] });
+  const example = () => ({
+    title: 'This week',
+    items: [
+      ['Pay the tax bill due Friday', 0.11, 0.13],
+      ['Fix the checkout bug customers hit', 0.3, 0.3],
+      ['Draft next quarter\'s plan', 0.66, 0.06],
+      ['Book a checkup', 0.8, 0.34],
+      ['Start running again', 0.9, 0.2],
+      ['Answer the vendor\'s pricing email', 0.16, 0.64],
+      ['Order lunch for the offsite', 0.36, 0.82],
+      ['Reorganize bookmarks', 0.72, 0.76],
+      ['Refresh the news', 0.9, 0.92],
+    ].map(([text, x, y]) => ({ id: uid(), text, x, y, done: false })),
+    tray: [{ id: uid(), text: 'Renew passport' }, { id: uid(), text: 'Call the landlord' }],
+  });
+
+  function sanitize(s) {
+    if (!s || typeof s !== 'object') return null;
+    const out = blank();
+    out.title = typeof s.title === 'string' ? s.title.slice(0, 80) : '';
+    if (Array.isArray(s.items)) {
+      for (const it of s.items) {
+        if (!it || typeof it.text !== 'string') continue;
+        const x = Number(it.x), y = Number(it.y);
+        if (!isFinite(x) || !isFinite(y)) continue;
+        out.items.push({ id: typeof it.id === 'string' ? it.id : uid(), text: it.text.slice(0, 120), x: clamp(x, 0.01, 0.99), y: clamp(y, 0.01, 0.99), done: !!it.done });
+      }
+    }
+    if (Array.isArray(s.tray)) {
+      for (const t of s.tray) if (t && typeof t.text === 'string') out.tray.push({ id: typeof t.id === 'string' ? t.id : uid(), text: t.text.slice(0, 120) });
+    }
+    return out;
+  }
+  function loadLocal() {
+    try { const raw = localStorage.getItem(KEY); return raw ? sanitize(JSON.parse(raw)) : null; } catch { return null; }
+  }
+  let shared = false, fromLink = false;
+  let state = loadLocal();
+  const firstVisit = !state;
+  if (!state) state = example();
+
+  function save() {
+    if (shared) return;
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+  }
+  const find = (id) => state.items.find((i) => i.id === id);
+
+  /* ---------- share links ---------- */
+  function encode(s) {
+    const data = { t: s.title, i: s.items.map((it) => [it.text, +it.x.toFixed(3), +it.y.toFixed(3), it.done ? 1 : 0]), r: s.tray.map((t) => t.text) };
+    const bytes = new TextEncoder().encode(JSON.stringify(data));
+    let bin = '';
+    bytes.forEach((b) => (bin += String.fromCharCode(b)));
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function decode(str) {
+    try {
+      const bin = atob(str.replace(/-/g, '+').replace(/_/g, '/'));
+      const data = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
+      return sanitize({
+        title: data.t,
+        items: (data.i || []).map((a) => ({ text: a[0], x: a[1], y: a[2], done: !!a[3] })),
+        tray: (data.r || []).map((text) => ({ text })),
+      });
+    } catch { return null; }
+  }
+  function readHash() {
+    const m = location.hash.match(/^#b=([A-Za-z0-9_-]+)/);
+    if (!m) return;
+    fromLink = true;
+    const s = decode(m[1]);
+    if (!s) { toast('That link is damaged, so your own board is shown instead.'); clearHash(); return; }
+    const mine = loadLocal();
+    if (!mine || (!mine.items.length && !mine.tray.length)) {
+      state = s; shared = false; save(); clearHash();
+    } else {
+      state = s; shared = true;
+    }
+    closeEditor(true);
+    disarm();
+    render();
+  }
+  function clearHash() { history.replaceState(null, '', location.pathname + location.search); }
+
+  /* ---------- rendering ---------- */
+  const pinEls = new Map();
+
+  function makePin(it) {
+    const el = document.createElement('div');
+    el.className = 'pin';
+    el.dataset.id = it.id;
+    const dot = document.createElement('button');
+    dot.className = 'dot';
+    dot.type = 'button';
+    const label = document.createElement('span');
+    label.className = 'label';
+    el.append(dot, label);
+    return el;
+  }
+  function updatePin(el, it) {
+    const q = quadOf(it.x, it.y);
+    el.style.left = it.x * 100 + '%';
+    el.style.top = it.y * 100 + '%';
+    el.dataset.q = q;
+    el.classList.toggle('done', it.done);
+    const label = el.lastChild;
+    if (label.textContent !== it.text) label.textContent = it.text;
+    // put the label on whichever side of the dot has room for it
+    const bw = board.clientWidth, px = it.x * bw;
+    const right = bw - px - 18, left = px - 18;
+    el.classList.toggle('flip', label.offsetWidth > right && left > right);
+    el.firstChild.setAttribute('aria-label', `${it.text || 'Untitled task'}. ${QUADS[q].name}${it.done ? ', done' : ''}. Arrow keys move it, Enter edits, Delete removes.`);
+  }
+  function renderPins() {
+    const seen = new Set();
+    state.items.forEach((it, i) => {
+      seen.add(it.id);
+      let el = pinEls.get(it.id);
+      if (!el) { el = makePin(it); el.style.setProperty('--i', i); layer.appendChild(el); pinEls.set(it.id, el); }
+      updatePin(el, it);
+    });
+    for (const [id, el] of pinEls) if (!seen.has(id)) { el.remove(); pinEls.delete(id); }
+    $('#empty').hidden = state.items.length > 0 || !!editing;
+  }
+
+  function renderTray() {
+    trayEl.replaceChildren();
+    for (const t of state.tray) {
+      const li = document.createElement('li');
+      li.className = 'chip';
+      li.dataset.id = t.id;
+      li.tabIndex = 0;
+      li.setAttribute('role', 'button');
+      li.setAttribute('aria-label', `${t.text}. Drag onto the matrix, or press Enter to place it.`);
+      if (armed === t.id) li.classList.add('armed');
+      const span = document.createElement('span');
+      span.textContent = t.text;
+      const x = document.createElement('button');
+      x.className = 'chip-x';
+      x.type = 'button';
+      x.innerHTML = X_SVG;
+      x.setAttribute('aria-label', `Remove ${t.text}`);
+      li.append(span, x);
+      trayEl.appendChild(li);
+    }
+  }
+
+  function renderList() {
+    groupsEl.replaceChildren();
+    for (const q of ORDER) {
+      const items = state.items.filter((i) => quadOf(i.x, i.y) === q)
+        .sort((a, b) => (a.done - b.done) || (score(b) - score(a)));
+      const sec = document.createElement('section');
+      sec.className = 'group' + (items.length ? '' : ' is-empty');
+      sec.dataset.q = q;
+      const h = document.createElement('div');
+      h.className = 'group-h';
+      const h3 = document.createElement('h3');
+      h3.textContent = QUADS[q].name;
+      const count = document.createElement('span');
+      count.className = 'count';
+      const open = items.filter((i) => !i.done).length;
+      count.textContent = items.length ? (open === items.length ? `${items.length}` : `${open} of ${items.length} left`) : 'None';
+      h.append(h3, count);
+      sec.appendChild(h);
+      if (items.length) {
+        const ol = document.createElement('ol');
+        for (const it of items) {
+          const li = document.createElement('li');
+          li.dataset.id = it.id;
+          if (it.done) li.classList.add('done');
+          const c = document.createElement('button');
+          c.className = 'check';
+          c.type = 'button';
+          c.setAttribute('role', 'checkbox');
+          c.setAttribute('aria-checked', String(it.done));
+          c.setAttribute('aria-label', `Done: ${it.text}`);
+          c.innerHTML = CHECK_SVG;
+          const t = document.createElement('button');
+          t.className = 'ltext';
+          t.type = 'button';
+          t.textContent = it.text;
+          li.append(c, t);
+          ol.appendChild(li);
+        }
+        sec.appendChild(ol);
+      }
+      groupsEl.appendChild(sec);
+    }
+  }
+
+  function renderTitle() {
+    if (document.activeElement !== titleEl) titleEl.value = state.title;
+    document.title = state.title ? `${state.title} | Eisenhower Matrix` : 'Eisenhower Matrix';
+    $('#banner').hidden = !shared;
+  }
+
+  function render() { renderPins(); renderTray(); renderList(); renderTitle(); }
+  function commit() { save(); render(); }
+
+  /* ---------- toast + undo ---------- */
+  let toastTimer, undoSnap = null;
+  function toast(msg, actionLabel, action) {
+    const el = $('#toast'), btn = $('#toast-btn');
+    $('#toast-msg').textContent = msg;
+    btn.textContent = actionLabel || '';
+    btn.onclick = action ? () => { action(); hideToast(); } : null;
+    el.classList.add('on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, action ? 6000 : 3200);
+  }
+  function hideToast() { $('#toast').classList.remove('on'); }
+  const snapshot = () => JSON.parse(JSON.stringify(state));
+  function undo() {
+    if (!undoSnap) return;
+    closeEditor(true);
+    state = undoSnap;
+    undoSnap = null;
+    commit();
+    toast('Restored.');
+  }
+
+  /* ---------- editor ---------- */
+  let editing = null; // { id, isNew, prev }
+  function openEditor(id, isNew = false) {
+    if (editing && editing.id === id) { edInput.focus({ preventScroll: true }); return; }
+    if (editing) closeEditor();
+    const it = find(id);
+    if (!it) return;
+    editing = { id, isNew, prev: it.text };
+    edInput.value = it.text;
+    editor.hidden = false;
+    $('#empty').hidden = true;
+    pinEls.get(id)?.classList.add('active');
+    syncEditor();
+    positionEditor();
+    edInput.focus({ preventScroll: true });
+    if (!isNew) edInput.setSelectionRange(it.text.length, it.text.length);
+  }
+  function syncEditor() {
+    if (!editing) return;
+    const it = find(editing.id);
+    const q = quadOf(it.x, it.y);
+    editor.dataset.q = q;
+    $('#ed-quad').textContent = QUADS[q].name;
+    $('#ed-key').hidden = !editing.isNew;
+    $('#ed-done').hidden = editing.isNew;
+    $('#ed-done').textContent = it.done ? 'Mark not done' : 'Mark done';
+    $('#ed-del').textContent = editing.isNew ? 'Cancel' : 'Delete';
+  }
+  function positionEditor() {
+    if (!editing) return;
+    const it = find(editing.id);
+    const bw = board.clientWidth, bh = board.clientHeight;
+    const ew = editor.offsetWidth, eh = editor.offsetHeight;
+    const px = it.x * bw, py = it.y * bh;
+    const left = clamp(px - ew / 2, 4, Math.max(4, bw - ew - 4));
+    let top = py + 22;
+    if (top + eh > bh - 4) top = py - 22 - eh;
+    editor.style.left = left + 'px';
+    editor.style.top = Math.max(4, top) + 'px';
+  }
+  // cancel = true reverts text (or drops a brand-new empty task)
+  function closeEditor(cancel = false) {
+    if (!editing) return;
+    const { id, isNew, prev } = editing;
+    editing = null;
+    editor.hidden = true;
+    pinEls.get(id)?.classList.remove('active');
+    const it = find(id);
+    if (it) {
+      const text = edInput.value.trim();
+      if (cancel && isNew) state.items = state.items.filter((i) => i.id !== id);
+      else if (cancel || !text) {
+        if (isNew) state.items = state.items.filter((i) => i.id !== id);
+        else it.text = prev;
+      } else it.text = text;
+    }
+    commit();
+  }
+  edInput.addEventListener('input', () => {
+    const it = editing && find(editing.id);
+    if (!it) return;
+    it.text = edInput.value.slice(0, 120);
+    updatePin(pinEls.get(it.id), it);
+  });
+  edInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const id = editing && editing.id;
+      closeEditor();
+      const dot = id && pinEls.get(id)?.firstChild;
+      if (dot) dot.focus({ preventScroll: true });
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      const id = editing && editing.id;
+      closeEditor(true);
+      pinEls.get(id)?.firstChild.focus({ preventScroll: true });
+    }
+  });
+  $('#ed-done').addEventListener('click', () => {
+    const it = editing && find(editing.id);
+    if (!it) return;
+    it.done = !it.done;
+    closeEditor();
+  });
+  $('#ed-del').addEventListener('click', () => {
+    if (!editing) return;
+    if (editing.isNew) closeEditor(true);
+    else deleteItem(editing.id);
+  });
+
+  function deleteItem(id) {
+    const it = find(id);
+    if (!it) return;
+    undoSnap = snapshot();
+    if (editing && editing.id === id) { editing = null; editor.hidden = true; }
+    state.items = state.items.filter((i) => i.id !== id);
+    commit();
+    toast(`Deleted “${trunc(it.text || 'task')}”`, 'Undo', undo);
+  }
+
+  function addAt(p) {
+    const it = { id: uid(), text: '', x: p.x, y: p.y, done: false };
+    state.items.push(it);
+    renderPins();
+    land(it.id);
+    openEditor(it.id, true);
+  }
+  function land(id) {
+    const el = pinEls.get(id);
+    if (!el) return;
+    el.classList.remove('landed');
+    void el.offsetWidth;
+    el.classList.add('landed');
+    setTimeout(() => el.classList.remove('landed'), 500);
+  }
+
+  /* ---------- guides ---------- */
+  function showGuides(x, y) {
+    const q = quadOf(x, y);
+    gx.dataset.q = gy.dataset.q = q;
+    gx.style.left = x * 100 + '%';
+    gy.style.top = y * 100 + '%';
+    gx.classList.add('on'); gy.classList.add('on');
+    board.dataset.over = q;
+  }
+  function hideGuides() {
+    gx.classList.remove('on'); gy.classList.remove('on');
+    delete board.dataset.over;
+  }
+
+  /* ---------- board pointer handling ---------- */
+  const fracAt = (cx, cy) => {
+    const r = board.getBoundingClientRect();
+    return { x: (cx - r.left) / r.width, y: (cy - r.top) / r.height, inside: cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom };
+  };
+  let drag = null;
+
+  board.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || e.target.closest('#editor')) return;
+    const pin = e.target.closest('.pin');
+    if (pin) {
+      e.preventDefault();
+      const id = pin.dataset.id;
+      if (editing && editing.id !== id) closeEditor();
+      const it = find(id);
+      const p = fracAt(e.clientX, e.clientY);
+      drag = { kind: 'pin', id, sx: e.clientX, sy: e.clientY, moved: false, dx: it.x - p.x, dy: it.y - p.y, wasEditing: !!editing };
+      board.setPointerCapture(e.pointerId);
+      return;
+    }
+    if (editing) { closeEditor(); drag = { kind: 'dismiss' }; return; }
+    drag = { kind: 'new', sx: e.clientX, sy: e.clientY, moved: false };
+    board.setPointerCapture(e.pointerId);
+  });
+  board.addEventListener('pointermove', (e) => {
+    if (!drag || drag.kind === 'dismiss') return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 4) {
+      drag.moved = true;
+      if (drag.kind === 'pin') {
+        if (editing) closeEditor();
+        pinEls.get(drag.id)?.classList.add('dragging');
+      }
+    }
+    if (drag.kind === 'pin' && drag.moved) {
+      const it = find(drag.id);
+      if (!it) return;
+      const p = fracAt(e.clientX, e.clientY);
+      it.x = clamp(p.x + drag.dx, 0.01, 0.99);
+      it.y = clamp(p.y + drag.dy, 0.01, 0.99);
+      updatePin(pinEls.get(it.id), it);
+      showGuides(it.x, it.y);
+    }
+  });
+  function endDrag(e, cancelled) {
+    const d = drag;
+    drag = null;
+    if (!d) return;
+    if (d.kind === 'pin') {
+      pinEls.get(d.id)?.classList.remove('dragging');
+      hideGuides();
+      if (d.moved) commit();
+      else if (!cancelled) openEditor(d.id);
+    } else if (d.kind === 'new' && !d.moved && !cancelled) {
+      const p = fracAt(e.clientX, e.clientY);
+      if (!p.inside) return;
+      const pt = { x: clamp(p.x, 0.01, 0.99), y: clamp(p.y, 0.01, 0.99) };
+      if (armed) placeFromTray(armed, pt);
+      else addAt(pt);
+    }
+  }
+  board.addEventListener('pointerup', (e) => endDrag(e, false));
+  board.addEventListener('pointercancel', (e) => endDrag(e, true));
+
+  // keyboard on dots
+  layer.addEventListener('keydown', (e) => {
+    if (!e.target.classList.contains('dot')) return;
+    const id = e.target.parentElement.dataset.id;
+    const it = find(id);
+    if (!it) return;
+    const step = e.shiftKey ? 0.1 : 0.02;
+    switch (e.key) {
+      case 'ArrowLeft': it.x = clamp(it.x - step, 0.01, 0.99); break;
+      case 'ArrowRight': it.x = clamp(it.x + step, 0.01, 0.99); break;
+      case 'ArrowUp': it.y = clamp(it.y - step, 0.01, 0.99); break;
+      case 'ArrowDown': it.y = clamp(it.y + step, 0.01, 0.99); break;
+      case 'Enter': case ' ': e.preventDefault(); openEditor(id); return;
+      case 'Delete': case 'Backspace': e.preventDefault(); deleteItem(id); return;
+      default: return;
+    }
+    e.preventDefault();
+    commit();
+  });
+
+  // close the editor when clicking anywhere outside the board
+  document.addEventListener('pointerdown', (e) => {
+    if (editing && !board.contains(e.target)) closeEditor();
+  });
+
+  /* ---------- brain dump tray ---------- */
+  let armed = null;
+  function disarm() {
+    armed = null;
+    board.classList.remove('armed');
+    trayEl.querySelectorAll('.chip.armed').forEach((c) => c.classList.remove('armed'));
+  }
+  function arm(id) {
+    if (armed === id) { disarm(); return; }
+    closeEditor();
+    armed = id;
+    board.classList.add('armed');
+    renderTray();
+    const t = state.tray.find((t) => t.id === id);
+    toast(`Now click the matrix to place “${trunc(t.text, 28)}”.`);
+  }
+  function placeFromTray(id, pt) {
+    const t = state.tray.find((t) => t.id === id);
+    if (!t) return;
+    disarm();
+    state.tray = state.tray.filter((x) => x.id !== id);
+    state.items.push({ id: t.id, text: t.text, x: pt.x, y: pt.y, done: false });
+    commit();
+    land(t.id);
+    hideToast();
+  }
+
+  function addToTray(text) {
+    const lines = text.split(/\r?\n/).map((s) => s.replace(/^\s*([-*•]|\d+[.)]|\[[ x]\])\s*/i, '').trim()).filter(Boolean);
+    for (const l of lines) state.tray.push({ id: uid(), text: l.slice(0, 120) });
+    if (lines.length) commit();
+    return lines.length;
+  }
+  $('#dump-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const inp = $('#dump-input');
+    if (addToTray(inp.value)) inp.value = '';
+  });
+  $('#dump-input').addEventListener('paste', (e) => {
+    const text = e.clipboardData && e.clipboardData.getData('text');
+    if (text && /\n/.test(text.trim())) {
+      e.preventDefault();
+      const n = addToTray(text);
+      toast(`Added ${n} tasks to the brain dump.`);
+    }
+  });
+
+  let chipDrag = null, ghost = null;
+  trayEl.addEventListener('pointerdown', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip || e.button !== 0 || e.target.closest('.chip-x')) return;
+    e.preventDefault();
+    chipDrag = { id: chip.dataset.id, el: chip, sx: e.clientX, sy: e.clientY, moved: false };
+    chip.setPointerCapture(e.pointerId);
+  });
+  trayEl.addEventListener('pointermove', (e) => {
+    if (!chipDrag) return;
+    if (!chipDrag.moved && Math.hypot(e.clientX - chipDrag.sx, e.clientY - chipDrag.sy) > 5) {
+      chipDrag.moved = true;
+      if (editing) closeEditor();
+      const t = state.tray.find((t) => t.id === chipDrag.id);
+      ghost = document.createElement('div');
+      ghost.className = 'ghost';
+      ghost.innerHTML = '<span class="dot"></span><span class="label"></span>';
+      ghost.lastChild.textContent = t ? t.text : '';
+      document.body.appendChild(ghost);
+      chipDrag.el.classList.add('lifted');
+    }
+    if (!chipDrag.moved) return;
+    ghost.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+    const p = fracAt(e.clientX, e.clientY);
+    if (p.inside) {
+      const q = quadOf(p.x, p.y);
+      ghost.dataset.q = q;
+      showGuides(clamp(p.x, 0.01, 0.99), clamp(p.y, 0.01, 0.99));
+    } else {
+      delete ghost.dataset.q;
+      hideGuides();
+    }
+  });
+  function endChip(e, cancelled) {
+    const d = chipDrag;
+    chipDrag = null;
+    if (!d) return;
+    if (ghost) { ghost.remove(); ghost = null; }
+    d.el.classList.remove('lifted');
+    hideGuides();
+    if (cancelled) return;
+    if (d.moved) {
+      const p = fracAt(e.clientX, e.clientY);
+      if (p.inside) placeFromTray(d.id, { x: clamp(p.x, 0.01, 0.99), y: clamp(p.y, 0.01, 0.99) });
+    } else arm(d.id);
+  }
+  trayEl.addEventListener('pointerup', (e) => endChip(e, false));
+  trayEl.addEventListener('pointercancel', (e) => endChip(e, true));
+  trayEl.addEventListener('click', (e) => {
+    const x = e.target.closest('.chip-x');
+    if (!x) return;
+    const id = x.parentElement.dataset.id;
+    if (armed === id) disarm();
+    state.tray = state.tray.filter((t) => t.id !== id);
+    commit();
+  });
+  trayEl.addEventListener('keydown', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip || e.target !== chip || (e.key !== 'Enter' && e.key !== ' ')) return;
+    e.preventDefault();
+    const id = chip.dataset.id;
+    placeFromTray(id, { x: 0.5 + (Math.random() - 0.5) * 0.04, y: 0.47 + (Math.random() - 0.5) * 0.04 });
+    pinEls.get(id)?.firstChild.focus();
+    toast('Placed in the middle. Use the arrow keys to move it.');
+  });
+
+  /* ---------- side list ---------- */
+  groupsEl.addEventListener('click', (e) => {
+    const li = e.target.closest('li');
+    if (!li) return;
+    const it = find(li.dataset.id);
+    if (!it) return;
+    if (e.target.closest('.check')) {
+      it.done = !it.done;
+      commit();
+      groupsEl.querySelector(`li[data-id="${it.id}"] .check`)?.focus();
+    } else if (e.target.closest('.ltext')) {
+      const r = board.getBoundingClientRect();
+      if (r.top < 0 || r.bottom > innerHeight) board.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      openEditor(it.id);
+    }
+  });
+  // stop the document handler from treating list clicks as "outside" before the editor reopens
+  groupsEl.addEventListener('pointerdown', (e) => { if (e.target.closest('.ltext')) e.stopPropagation(); });
+  groupsEl.addEventListener('pointerover', (e) => {
+    const li = e.target.closest('li');
+    groupsEl.querySelectorAll('li.hl').forEach((l) => l !== li && l.classList.remove('hl'));
+    pinEls.forEach((el) => el.classList.toggle('hl', !!li && el.dataset.id === li.dataset.id));
+  });
+  groupsEl.addEventListener('pointerleave', () => pinEls.forEach((el) => el.classList.remove('hl')));
+  layer.addEventListener('pointerover', (e) => {
+    const pin = e.target.closest('.pin');
+    groupsEl.querySelectorAll('li').forEach((li) => li.classList.toggle('hl', !!pin && li.dataset.id === pin.dataset.id));
+  });
+  layer.addEventListener('pointerleave', () => groupsEl.querySelectorAll('li.hl').forEach((li) => li.classList.remove('hl')));
+
+  /* ---------- header actions ---------- */
+  titleEl.addEventListener('input', () => { state.title = titleEl.value; save(); renderTitle(); });
+  titleEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') titleEl.blur(); });
+
+  async function copy(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch {}
+      ta.remove();
+      return ok;
+    }
+  }
+  $('#share').addEventListener('click', async () => {
+    closeEditor();
+    const url = location.origin + location.pathname + '#b=' + encode(state);
+    const ok = await copy(url);
+    toast(ok ? 'Link copied. It opens this board exactly as it is now.' : 'Couldn\'t reach the clipboard. Copy the link from the address bar.');
+    if (!ok) history.replaceState(null, '', url);
+  });
+  $('#copytext').addEventListener('click', async () => {
+    closeEditor();
+    const lines = [state.title || 'Eisenhower matrix', ''];
+    for (const q of ORDER) {
+      const items = state.items.filter((i) => quadOf(i.x, i.y) === q).sort((a, b) => (a.done - b.done) || (score(b) - score(a)));
+      if (!items.length) continue;
+      lines.push(QUADS[q].name);
+      for (const i of items) lines.push(`- [${i.done ? 'x' : ' '}] ${i.text}`);
+      lines.push('');
+    }
+    if (state.tray.length) {
+      lines.push('Not sorted yet');
+      for (const t of state.tray) lines.push(`- [ ] ${t.text}`);
+      lines.push('');
+    }
+    const ok = await copy(lines.join('\n').trim() + '\n');
+    toast(ok ? 'Copied as a checklist.' : 'Couldn\'t reach the clipboard.');
+  });
+  $('#clear').addEventListener('click', () => {
+    if (!state.items.length && !state.tray.length) { toast('The board is already empty.'); return; }
+    closeEditor(true);
+    disarm();
+    undoSnap = snapshot();
+    state.items = [];
+    state.tray = [];
+    commit();
+    toast('Board cleared.', 'Undo', undo);
+  });
+  $('#keep').addEventListener('click', () => {
+    shared = false;
+    save();
+    clearHash();
+    render();
+    toast('Kept. This is now your board.');
+  });
+  $('#mine').addEventListener('click', () => {
+    shared = false;
+    closeEditor(true);
+    state = loadLocal() || blank();
+    clearHash();
+    render();
+  });
+
+  /* ---------- global keys ---------- */
+  document.addEventListener('keydown', (e) => {
+    const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName);
+    if (e.key === 'Escape' && armed) { disarm(); hideToast(); }
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && !typing && undoSnap) {
+      e.preventDefault();
+      undo();
+    }
+  });
+  window.addEventListener('resize', () => { renderPins(); positionEditor(); });
+  window.addEventListener('hashchange', readHash);
+  window.addEventListener('storage', (e) => {
+    if (e.key === KEY && !shared && !editing && !drag) { state = loadLocal() || blank(); render(); }
+  });
+
+  /* ---------- boot ---------- */
+  render();
+  readHash();
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    board.classList.add('intro');
+    setTimeout(() => board.classList.remove('intro'), 1400);
+  }
+  if (firstVisit && !fromLink) {
+    save();
+    setTimeout(() => toast('Here\'s an example board. Clear it when you\'re ready to start your own.', 'Clear', () => $('#clear').click()), 900);
+  }
+})();
+</script>
+</body>
+</html>
